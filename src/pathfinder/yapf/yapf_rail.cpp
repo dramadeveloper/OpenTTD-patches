@@ -180,9 +180,19 @@ private:
 	{
 		TileIndex     start = tile;
 		TileIndexDiff diff = TileOffsByDiagDir(dir);
+		const Train *v = Yapf().GetVehicle();
+
+		/* The strict couple semantics: the partner must be alone in its
+		 * signal block before anything is reserved towards it. */
+		if (v->current_order.IsType(OT_GOTO_COUPLE) && !IsCoupleTargetBlockClear(v)) return false;
 
 		do {
-			if (HasStationReservation(tile)) return false;
+			/* Tiles of the claimed couple partner's own platform are shared:
+			 * the partner's arrival reservation covers the whole strip, also
+			 * the empty tiles in front of and behind its body. Any other
+			 * reservation on the platform (another train standing in the same
+			 * block) still blocks. */
+			if (HasStationReservation(tile) && !IsCouplePartnerTile(v, tile)) return false;
 			SetRailStationReservation(tile, true);
 			MarkTileDirtyByTile(tile, VMDF_NOT_MAP_MODE);
 			tile = TileAdd(tile, diff);
@@ -238,8 +248,11 @@ private:
 		if (IsRailStationTile(tile)) {
 			TileIndex     start = tile;
 			TileIndexDiff diff = TileOffsByDiagDir(TrackdirToExitdir(ReverseTrackdir(td)));
+			const Train *v = Yapf().GetVehicle();
 			while ((tile != this->res_fail_tile || td != this->res_fail_td) && IsCompatibleTrainStationTile(tile, start)) {
-				SetRailStationReservation(tile, false);
+				/* Never clear the tiles of the claimed couple partner's own
+				 * platform: its arrival reservation must stay intact. */
+				if (!IsCouplePartnerTile(v, tile)) SetRailStationReservation(tile, false);
 				tile = TileAdd(tile, diff);
 			}
 		} else if (tile != this->res_fail_tile || td != this->res_fail_td) {
@@ -317,7 +330,9 @@ public:
 		/* Don't bother if the target is reserved. */
 		PBSWaitingPositionRestrictedSignalState restricted_signal_state;
 		restricted_signal_state.defer_test_if_slot_conditional = true;
-		if (!unsafe_pos && !IsWaitingPositionFree(Yapf().GetVehicle(), this->res_dest_tile, this->res_dest_td, false, &restricted_signal_state)) return false;
+		if (!unsafe_pos && !IsWaitingPositionFree(Yapf().GetVehicle(), this->res_dest_tile, this->res_dest_td, false, &restricted_signal_state)) {
+			return false;
+		}
 
 		/* The temporary slot state only needs to be pushed to the stack (i.e. activated) on first use */
 		static TraceRestrictSlotTemporaryState temporary_slot_state;
@@ -496,7 +511,7 @@ public:
 		return 't';
 	}
 
-	static Trackdir stFindNearestCoupleTrain(const Train *v, bool dont_reserve, Train **couple_target)
+	static Trackdir stFindNearestCoupleTrain(const Train *v, bool dont_reserve, Train **couple_target, uint32_t *couple_cost)
 	{
 		/* Create pathfinder instance */
 		Tpf pf1;
@@ -505,10 +520,14 @@ public:
 		if (couple_target != nullptr) {
 			*couple_target = (ret != INVALID_TRACKDIR) ? pf1.couple_target_found : nullptr;
 		}
+		if (couple_cost != nullptr) {
+			*couple_cost = (ret != INVALID_TRACKDIR) ? pf1.couple_cost_found : 0;
+		}
 		return ret;
 	}
 
 	Train *couple_target_found = nullptr; ///< Contact-end vehicle of the waiting train found at the best node
+	uint32_t couple_cost_found = 0;       ///< Path cost of the best node the couple target was found at
 
 	Trackdir FindNearestCoupleTrain(const Train *v, bool dont_reserve)
 	{
@@ -525,16 +544,18 @@ public:
 		/* Found a destination, set as reservation target. */
 		Node *pNode = Yapf().GetBestNode();
 		this->SetReservationTarget(pNode, pNode->GetLastTile(), pNode->GetLastTrackdir());
+		this->couple_cost_found = static_cast<uint32_t>(pNode->GetCost());
 
 		/* Resolve the concrete coupling target at the chosen destination so the
-		 * caller can brake for the exact contact point. */
+		 * caller can brake for the exact contact point. The claim of another
+		 * approaching consist on a waiting train makes the train re-select. */
 		{
 			TileIndex dest_tile = pNode->GetLastTile();
 			Trackdir dest_td = pNode->GetLastTrackdir();
-			Train *target = ResolveCoupleTargetStation(v, dest_tile, dest_td);
+			Train *target = ResolveCoupleTargetStation(v, dest_tile, dest_td, true, this->couple_cost_found);
 			if (target == nullptr && !IsRailStationTile(dest_tile)) {
 				target = GetTrainForReservation(dest_tile, TrackdirToTrack(dest_td));
-				if (target != nullptr) target = ValidateCoupleCandidate(v, target->First(), dest_tile, target);
+				if (target != nullptr) target = ValidateCoupleCandidate(v, target->First(), dest_tile, target, true, this->couple_cost_found);
 			}
 			this->couple_target_found = target;
 		}
@@ -1004,12 +1025,13 @@ struct CYapfCoupleRailNo90 : CYapfRailBase<CYapfRail_TypesT<CYapfCoupleRailNo90,
  * @param dont_reserve Whether to skip making a reservation.
  * @return The track to take, or #INVALID_TRACK if no path was found.
  */
-Track YapfTrainCoupleTrack(const Train *v, bool dont_reserve, Train **couple_target)
+Track YapfTrainCoupleTrack(const Train *v, bool dont_reserve, Train **couple_target, uint32_t *couple_cost)
 {
 	if (couple_target != nullptr) *couple_target = nullptr;
+	if (couple_cost != nullptr) *couple_cost = 0;
 	Trackdir ret = _settings_game.pf.forbid_90_deg
-		? CYapfCoupleRailNo90::stFindNearestCoupleTrain(v, dont_reserve, couple_target)
-		: CYapfCoupleRail::stFindNearestCoupleTrain(v, dont_reserve, couple_target);
+		? CYapfCoupleRailNo90::stFindNearestCoupleTrain(v, dont_reserve, couple_target, couple_cost)
+		: CYapfCoupleRail::stFindNearestCoupleTrain(v, dont_reserve, couple_target, couple_cost);
 
 	return (ret != INVALID_TRACKDIR) ? TrackdirToTrack(ret) : INVALID_TRACK;
 }

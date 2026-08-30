@@ -78,6 +78,12 @@ TEST_CASE("A zero coupling count takes the complete target")
 	_vehicle_pool.CleanPool();
 }
 
+TEST_CASE("Partial coupling preserves the waiting dispatch history")
+{
+	CHECK_FALSE(ShouldClearCoupleSourceDispatchRecords(false));
+	CHECK(ShouldClearCoupleSourceDispatchRecords(true));
+}
+
 TEST_CASE("Coupling selection never splits articulated or dual-headed units")
 {
 	_vehicle_pool.CleanPool();

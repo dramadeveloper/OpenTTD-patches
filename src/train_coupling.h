@@ -54,6 +54,12 @@ inline CoupleUnitSelection PlanCoupleUnitSelection(uint16_t available_units, uin
 	};
 }
 
+/** The source dispatch history is consumed only when coupling absorbs it completely. */
+inline bool ShouldClearCoupleSourceDispatchRecords(bool complete_take)
+{
+	return complete_take;
+}
+
 CoupleTrainUnitSelection FindCoupleTrainUnitSelection(Train *waiting_first, uint8_t requested_units, CoupleContactEnd contact_end);
 std::vector<Train *> FindReversibleCoupleParts(Train *first, Train *end);
 void ReverseCouplePhysicalPartStates(std::vector<Train *> &physical_parts);
