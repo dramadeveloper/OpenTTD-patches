@@ -35,6 +35,7 @@
 #include "core/random_func.hpp"
 #include "vehicle_cmd.h"
 #include "train_cmd.h"
+#include "train_coupling.h"
 #include "tbtr_template_vehicle.h"
 #include "tbtr_template_vehicle_cmd.h"
 #include "tbtr_template_vehicle_func.h"
@@ -778,7 +779,8 @@ CommandCost CmdDepotSellAllVehicles(DoCommandFlags flags, TileIndex tile, Vehicl
 	bool had_success = false;
 	for (const Vehicle *v : list) {
 		if (v->owner != _current_company) continue;
-		CommandCost ret = Command<Commands::SellVehicle>::Do(flags, v->tile, v->index, SellVehicleFlags::SellChain, INVALID_CLIENT_ID);
+		const Vehicle *sell_target = vehicle_type == VehicleType::Train ? ResolveDepotSellAllTrain(Train::From(v)) : v;
+		CommandCost ret = Command<Commands::SellVehicle>::Do(flags, sell_target->tile, sell_target->index, SellVehicleFlags::SellChain, INVALID_CLIENT_ID);
 		if (ret.Succeeded()) {
 			cost.AddCost(ret.GetCost());
 			had_success = true;

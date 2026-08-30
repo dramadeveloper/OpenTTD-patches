@@ -95,8 +95,14 @@ protected:
 
 		int opcode_charge = 0;
 		int item_count = 0;
-		for (const IterType *item : helper.Iterate()) {
+		for (const IterType *iter_item : helper.Iterate()) {
 			item_count++;
+			const IterType *item;
+			if constexpr (requires { helper.GetItem(iter_item); }) {
+				item = helper.GetItem(iter_item);
+			} else {
+				item = iter_item;
+			}
 			if (!item_valid(item)) continue;
 			if (!item_filter(item)) continue;
 			list->AddItem(GetRawIndex(item->index));

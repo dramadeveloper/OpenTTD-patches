@@ -280,6 +280,11 @@ inline bool SlXvIsFeatureMissing(const std::array<uint16_t, XSLFI_SIZE> &feature
 	return !SlXvIsFeaturePresent(feature_versions, feature, min_version);
 }
 
+inline bool ShouldLoadLegacyCurrentOrderDecoupleFlags(bool version_in_range, const std::array<uint16_t, XSLFI_SIZE> &feature_versions)
+{
+	return version_in_range && SlXvIsFeatureMissing(feature_versions, XSLFI_ORDER_DECOUPLE);
+}
+
 const char *SlXvGetFeatureName(SlXvFeatureIndex feature);
 
 inline SaveLoadVersion SlXvGetUpstreamVersion()

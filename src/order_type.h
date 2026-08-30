@@ -81,7 +81,7 @@ static const uint IMPLICIT_ORDER_ONLY_CAP = 32;
 /** Invalid scheduled dispatch offset from current schedule */
 static const int32_t INVALID_SCHEDULED_DISPATCH_OFFSET = INT32_MIN;
 
-/** Order types. It needs to be 8bits, because we save and load it as such */
+/** Order types. The enum itself fits in 8 bits; Order packs it together with flags. */
 enum OrderType : uint8_t {
 	OT_BEGIN         = 0,
 	OT_NOTHING       = 0,
@@ -105,6 +105,8 @@ enum OrderType : uint8_t {
 	OT_EXECUTE_SCHEDULE, ///< Execute another order list: switch this vehicle to the target player-created order list.
 	OT_END
 };
+
+uint16_t ConvertLegacyOrderType(uint8_t legacy_type);
 
 using OrderTypeMask = uint32_t;
 
@@ -133,6 +135,20 @@ enum OrderDecoupleOrdersFlags : uint8_t {
 	ODOF_EXECUTE_SCHEDULE    = 5, ///< Adopt a player-created order list as the part's own schedule.
 	ODOF_END                 = 6,
 };
+
+static constexpr std::array _valid_order_decouple_orders = {
+	ODOF_KEEP_ORDERS,
+	ODOF_KEEP_ORDERS_NO_LOAD,
+	ODOF_WAIT_FOR_COUPLE,
+	ODOF_LOAD_AND_WAIT,
+};
+
+constexpr bool IsValidOrderDecoupleOrdersFlags(uint16_t value)
+{
+	return std::ranges::any_of(_valid_order_decouple_orders, [value](OrderDecoupleOrdersFlags valid) {
+		return value == to_underlying(valid);
+	});
+}
 
 enum OrderSlotSubType : uint8_t {
 	OSST_RELEASE               = 0,

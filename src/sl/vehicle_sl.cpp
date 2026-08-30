@@ -423,7 +423,8 @@ void AfterLoadVehiclesPhase1(bool part_of_load)
 
 		if (IsSavegameVersionBefore(SLV_180)) {
 			/* Set service interval flags */
-			for (Vehicle *v : Vehicle::IterateFrontOnly()) {
+			for (Vehicle *head : Vehicle::IterateFrontOnly()) {
+				Vehicle *v = head->Primary();
 				si_v = v;
 				if (!v->IsPrimaryVehicle()) continue;
 
@@ -1098,7 +1099,10 @@ NamedSaveLoadTable GetVehicleDescription(VehicleType vt)
 		NSL("current_order.dest",         SLE_CONDVAR(Vehicle, current_order.dest,        SLE_FILE_U8  | SLE_VAR_U16, SL_MIN_VERSION, SLV_5)),
 
 		/* Orders for version 5 and on */
-		NSL("current_order.type",         SLE_CONDVAR(Vehicle, current_order.type,        SLE_UINT16,                  SLV_5, SL_MAX_VERSION)),
+		NSL("current_order.type",       SLE_CONDVAR_X(Vehicle, current_order.type,        SLE_UINT16,                  SLV_5, SL_MAX_VERSION, SlXvFeatureTest([](uint16_t, bool version_in_range, const std::array<uint16_t, XSLFI_SIZE> &feature_versions) -> bool {
+			return version_in_range && SlXvIsFeatureMissing(feature_versions, XSLFI_ORDER_DECOUPLE);
+		}))),
+		NSL("current_order.type",       SLE_CONDVAR_X(Vehicle, current_order.type,        SLE_UINT16,                  SLV_5, SL_MAX_VERSION, SlXvFeatureTest(XSLFTO_AND, XSLFI_ORDER_DECOUPLE))),
 		NSL("current_order.flags",      SLE_CONDVAR_X(Vehicle, current_order.flags,       SLE_FILE_U8 | SLE_VAR_U16,  SLV_5, SL_MAX_VERSION, SlXvFeatureTest(XSLFTO_AND, XSLFI_ORDER_FLAGS_EXTRA, 0, 0))),
 		NSL("current_order.flags",      SLE_CONDVAR_X(Vehicle, current_order.flags,       SLE_UINT16,                 SLV_5, SL_MAX_VERSION, SlXvFeatureTest(XSLFTO_AND, XSLFI_ORDER_FLAGS_EXTRA, 1))),
 		NSL("current_order.dest",         SLE_CONDVAR(Vehicle, current_order.dest,        SLE_UINT16,                 SLV_5, SL_MAX_VERSION)),
@@ -1113,7 +1117,10 @@ NamedSaveLoadTable GetVehicleDescription(VehicleType vt)
 		NSL("current_order.travel_time",SLE_CONDVAR_X(Vehicle, current_order.travel_time, SLE_FILE_U16 | SLE_VAR_U32, SLV_67, SL_MAX_VERSION, SlXvFeatureTest(XSLFTO_AND, XSLFI_TIMETABLE_EXTRA, 0, 5))),
 		NSL("current_order.travel_time",SLE_CONDVAR_X(Vehicle, current_order.travel_time, SLE_UINT32,                 SLV_67, SL_MAX_VERSION, SlXvFeatureTest(XSLFTO_AND, XSLFI_TIMETABLE_EXTRA, 6))),
 		NSL("current_order.max_speed",    SLE_CONDVAR(Vehicle, current_order.max_speed,   SLE_UINT16,                 SLV_174, SL_MAX_VERSION)),
-		NSL("current_order.decouple_flags", SLE_CONDVAR(Vehicle, current_order.decouple_flags, SLE_UINT8,             SL_MIN_VERSION, SL_MAX_VERSION)),
+		NSL("current_order.decouple_flags", SLE_CONDVAR_X(Vehicle, current_order.decouple_flags, SLE_UINT8,           SLV_ORDER_DECOUPLE, SL_MAX_VERSION, SlXvFeatureTest([](uint16_t, bool version_in_range, const std::array<uint16_t, XSLFI_SIZE> &feature_versions) -> bool {
+			return ShouldLoadLegacyCurrentOrderDecoupleFlags(version_in_range, feature_versions);
+		}))),
+		NSL("current_order.decouple_flags", SLE_CONDVAR_X(Vehicle, current_order.decouple_flags, SLE_UINT8,           SL_MIN_VERSION, SL_MAX_VERSION, SlXvFeatureTest(XSLFTO_AND, XSLFI_ORDER_DECOUPLE))),
 
 		NSLT_STRUCT<VehicleOrderExtraDataStructHandler>("current_order.extra"),
 
@@ -1230,6 +1237,7 @@ NamedSaveLoadTable GetVehicleDescription(VehicleType vt)
 		NSL("speed_restriction",        SLE_CONDVAR_X(Train, speed_restriction,         SLE_UINT16,                  SL_MIN_VERSION, SL_MAX_VERSION, SlXvFeatureTest(XSLFTO_AND, XSLFI_SPEED_RESTRICTION))),
 		NSL("signal_speed_restriction", SLE_CONDVAR_X(Train, signal_speed_restriction,  SLE_UINT16,                  SL_MIN_VERSION, SL_MAX_VERSION, SlXvFeatureTest(XSLFTO_AND, XSLFI_TRAIN_SPEED_ADAPTATION))),
 		NSL("critical_breakdown_count", SLE_CONDVAR_X(Train, critical_breakdown_count,  SLE_UINT8,                   SL_MIN_VERSION, SL_MAX_VERSION, SlXvFeatureTest(XSLFTO_AND, XSLFI_IMPROVED_BREAKDOWNS, 2))),
+		NSL("decouple_part",          SLE_CONDVAR_X(Train, decouple_part,              SLE_UINT8,                   SL_MIN_VERSION, SL_MAX_VERSION, SlXvFeatureTest(XSLFTO_AND, XSLFI_ORDER_DECOUPLE, 2))),
 
 		NSLT_STRUCT<TrainLookaheadStateStructHandler>("lookahead"),
 	};
@@ -1495,6 +1503,8 @@ void Load_VEHS()
 			 *  in those versions, they both were 4 bits big) to type and flags */
 			v->current_order.flags = GB(v->current_order.type, 4, 4);
 			v->current_order.type &= 0x0F;
+		} else if (SlXvIsFeatureMissing(XSLFI_ORDER_DECOUPLE)) {
+			v->current_order.ConvertFromLegacyType();
 		}
 
 		/* Advanced vehicle lists got added */

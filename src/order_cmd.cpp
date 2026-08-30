@@ -52,6 +52,21 @@
 
 #include "safeguards.h"
 
+uint16_t ConvertLegacyOrderType(uint8_t legacy_type)
+{
+	const OrderType order_type = static_cast<OrderType>(GB(legacy_type, 0, 4));
+	uint16_t converted = to_underlying(order_type);
+
+	if (order_type == OT_CONDITIONAL) {
+		SB(converted, 9, 3, GB(legacy_type, 5, 3));
+	} else {
+		SB(converted, 5, 2, GB(legacy_type, 4, 2));
+		SB(converted, 7, 2, GB(legacy_type, 6, 2));
+	}
+
+	return converted;
+}
+
 
 DestinationID GetTargetDestination(const Order &o, bool is_aircraft)
 {
@@ -103,7 +118,8 @@ static CommandCost CmdInsertOrderIntl(DoCommandFlags flags, Vehicle *v, VehicleO
 void IntialiseOrderDestinationRefcountMap()
 {
 	ClearOrderDestinationRefcountMap();
-	for (const Vehicle *v : Vehicle::IterateFrontOnly()) {
+	for (const Vehicle *head : Vehicle::IterateFrontOnly()) {
+		const Vehicle *v = head->Primary();
 		if (v != v->FirstShared()) continue;
 		for (const Order *order : v->Orders()) {
 			if (order->IsType(OT_GOTO_STATION) || order->IsType(OT_GOTO_WAYPOINT) || order->IsType(OT_IMPLICIT)) {
@@ -3004,7 +3020,7 @@ CommandCost CmdModifyOrder(DoCommandFlags flags, OrderTargetType target_type, ui
 		case MOF_SECOND_ORDERS:
 		case MOF_FIRST_ORDERS:
 			if (!is_list && v->type != VehicleType::Train) return CMD_ERROR;
-			if (data >= ODOF_END) return CMD_ERROR;
+			if (!IsValidOrderDecoupleOrdersFlags(data)) return CMD_ERROR;
 			break;
 
 		case MOF_DECOUPLE_FIRST_SCHEDULE:
@@ -4252,7 +4268,8 @@ void StopRemoveOrderFromAllVehiclesBatch()
 	_remove_order_from_all_vehicles_batch = false;
 
 	/* Go through all vehicles */
-	for (Vehicle *v : Vehicle::IterateFrontOnly()) {
+	for (Vehicle *head : Vehicle::IterateFrontOnly()) {
+		Vehicle *v = head->Primary();
 		if (v->type == VehicleType::Aircraft) continue;
 
 		Order *order = &v->current_order;
@@ -4302,7 +4319,8 @@ void RemoveOrderFromAllVehicles(OrderType type, DestinationID destination, bool 
 	 */
 
 	/* Go through all vehicles */
-	for (Vehicle *v : Vehicle::IterateFrontOnly()) {
+	for (Vehicle *head : Vehicle::IterateFrontOnly()) {
+		Vehicle *v = head->Primary();
 		Order *order = &v->current_order;
 		if ((v->type == VehicleType::Aircraft && order->IsType(OT_GOTO_DEPOT) && !hangar ? OT_GOTO_STATION : order->GetType()) == type &&
 				(!hangar || v->type == VehicleType::Aircraft) && order->GetDestination() == destination) {
@@ -5522,8 +5540,9 @@ bool Order::CanLeaveWithCargo(bool has_cargo, CargoType cargo) const
 CommandCost CmdMassChangeOrder(DoCommandFlags flags, DestinationID from_dest, VehicleType vehtype, OrderType order_type, CargoType cargo_filter, DestinationID to_dest)
 {
 	if (flags.Test(DoCommandFlag::Execute)) {
-		for (Vehicle *v : Vehicle::IterateTypeFrontOnly(vehtype)) {
-			if (v->IsPrimaryVehicle() && CheckOwnership(v->owner).Succeeded() && VehicleCargoFilter(v, cargo_filter)) {
+		for (Vehicle *head : Vehicle::IterateTypeFrontOnly(vehtype)) {
+			Vehicle *v = head->Primary();
+			if (v->IsConsistIdentity() && CheckOwnership(v->owner).Succeeded() && VehicleCargoFilter(head, cargo_filter)) {
 				uint index = 0;
 				for (const Order *order : v->Orders()) {
 					if (order->GetDestination() == from_dest && order->IsType(order_type) &&

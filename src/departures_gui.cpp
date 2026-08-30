@@ -242,8 +242,9 @@ protected:
 				if (this->show_types[vt]) SetBit(vt_mask, to_underlying(vt));
 			}
 
-			for (const Vehicle *veh : Vehicle::IterateTypeMaskFrontOnly(vt_mask)) {
-				if (veh->IsPrimaryVehicle() && veh == veh->FirstShared()) process_vehicle(veh);
+			for (const Vehicle *head : Vehicle::IterateTypeMaskFrontOnly(vt_mask)) {
+				const Vehicle *veh = head->Primary();
+				if (veh->IsConsistIdentity() && veh == veh->FirstShared()) process_vehicle(veh);
 			}
 		}
 

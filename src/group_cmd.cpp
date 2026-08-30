@@ -123,7 +123,7 @@ uint16_t GroupStatistics::GetNumEngines(EngineID engine) const
 		if (!v->IsEngineCountable()) continue;
 
 		GroupStatistics::CountEngine(v, 1);
-		if (v->IsPrimaryVehicle()) GroupStatistics::CountVehicle(v, 1);
+		if (v->IsConsistIdentity()) GroupStatistics::CountVehicle(v, 1);
 	}
 
 	for (const Company *c : Company::Iterate()) {
@@ -220,8 +220,9 @@ uint16_t GroupStatistics::GetNumEngines(EngineID engine) const
 		g->statistics.ClearProfits();
 	}
 
-	for (const Vehicle *v : Vehicle::IterateFrontOnly()) {
-		if (v->IsPrimaryVehicle() && !HasBit(v->subtype, GVSF_VIRTUAL)) {
+	for (const Vehicle *head : Vehicle::IterateFrontOnly()) {
+		const Vehicle *v = head->Primary();
+		if (v->IsConsistIdentity() && !HasBit(v->subtype, GVSF_VIRTUAL)) {
 			GroupStatistics::AddProfitLastYear(v);
 			if (v->economy_age > VEHICLE_PROFIT_MIN_AGE) GroupStatistics::VehicleReachedMinAge(v);
 		}
@@ -333,9 +334,10 @@ void IterateDescendantsOfGroup(GroupID id_top, F func)
 static void PropagateChildLiveryResetVehicleCache(const Group *g)
 {
 	/* Company colour data is indirectly cached. */
-	for (Vehicle *v : Vehicle::IterateFrontOnly()) {
-		if (v->IsPrimaryVehicle() && (v->group_id == g->index || IsGroupIDDescendantOfGroupID(v->group_id, g->index, g->owner))) {
-			for (Vehicle *u = v; u != nullptr; u = u->Next()) {
+	for (Vehicle *head : Vehicle::IterateFrontOnly()) {
+		Vehicle *v = head->Primary();
+		if (v->IsConsistIdentity() && (v->group_id == g->index || IsGroupIDDescendantOfGroupID(v->group_id, g->index, g->owner))) {
+			for (Vehicle *u = head; u != nullptr; u = u->Next()) {
 				u->colourmap = PAL_NONE;
 				u->InvalidateNewGRFCache();
 				u->InvalidateImageCache();
@@ -768,6 +770,7 @@ CommandCost CmdCreateGroupFromList(DoCommandFlags flags, VehicleListIdentifier v
  */
 static void AddVehicleToGroup(Vehicle *v, GroupID new_g)
 {
+	v = v->Primary();
 	GroupStatistics::CountVehicle(v, -1);
 
 	switch (v->type) {
@@ -925,8 +928,9 @@ CommandCost CmdAddSharedVehicleGroup(DoCommandFlags flags, GroupID id_g, Vehicle
 		GroupChangeDeferredUpdateScope updater(type);
 		/* Find the first front engine which belong to the group id_g
 		 * then add all shared vehicles of this front engine to the group id_g */
-		for (const Vehicle *v : Vehicle::IterateTypeFrontOnly(type)) {
-			if (v->IsPrimaryVehicle()) {
+		for (const Vehicle *head : Vehicle::IterateTypeFrontOnly(type)) {
+			const Vehicle *v = head->Primary();
+			if (v->IsConsistIdentity()) {
 				if (v->group_id != id_g) continue;
 
 				/* For each shared vehicles add it to the group */
@@ -957,8 +961,9 @@ CommandCost CmdRemoveAllVehiclesGroup(DoCommandFlags flags, GroupID group_id)
 		GroupChangeDeferredUpdateScope updater(g->vehicle_type);
 
 		/* Find each Vehicle that belongs to the group old_g and add it to the default group */
-		for (Vehicle *v : Vehicle::IterateTypeFrontOnly(g->vehicle_type)) {
-			if (v->IsPrimaryVehicle()) {
+		for (Vehicle *head : Vehicle::IterateTypeFrontOnly(g->vehicle_type)) {
+			Vehicle *v = head->Primary();
+			if (v->IsConsistIdentity()) {
 				if (v->group_id != group_id) continue;
 
 				/* Add The Vehicle to the default group */
@@ -1062,9 +1067,10 @@ void SetTrainGroupID(Train *v, GroupID new_g)
 {
 	if (!Group::IsValidID(new_g) && !IsDefaultGroupID(new_g)) return;
 
-	assert(v->IsPrimaryVehicle() || IsDefaultGroupID(new_g));
+	Train *identity = v->Primary();
+	assert(identity->IsPrimaryVehicle() || IsDefaultGroupID(new_g));
 
-	for (Vehicle *u = v; u != nullptr; u = u->Next()) {
+	for (Vehicle *u = v->First(); u != nullptr; u = u->Next()) {
 		if (u->IsEngineCountable()) UpdateNumEngineGroup(u, u->group_id, new_g);
 
 		u->group_id = new_g;
@@ -1077,7 +1083,7 @@ void SetTrainGroupID(Train *v, GroupID new_g)
 	if (_group_change_deferred_updates.refcount != 0) return;
 
 	/* Update the Replace Vehicle Windows */
-	GroupStatistics::UpdateAutoreplace(v->owner);
+	GroupStatistics::UpdateAutoreplace(identity->owner);
 	SetWindowDirty(WindowClass::ReplaceVehicle, VehicleType::Train);
 }
 

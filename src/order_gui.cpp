@@ -4135,7 +4135,7 @@ public:
 			case WID_O_COUPLE_VALUE: {
 				const Order *order = OrderAt(this->OrderGetSel());
 				this->query_text_widget = widget;
-				ShowQueryString(GetString(STR_JUST_INT, order->GetNumCouple()), STR_ORDER_DECOUPLE_VALUE_CAPT, 4, this, CS_NUMERAL, {});
+				ShowQueryString(GetString(STR_JUST_INT, order->GetNumCouple()), STR_ORDER_COUPLE_VALUE_CAPT, 4, this, CS_NUMERAL, {});
 				break;
 			}
 

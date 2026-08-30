@@ -172,8 +172,11 @@ struct OrderExtraDataStructHandler final : public TypedSaveLoadStructHandler<Ord
 NamedSaveLoadTable GetOrderDescription()
 {
 	static const NamedSaveLoad _order_desc[] = {
-		NSL("type",                SLE_VAR(Order, type,               SLE_UINT16)),
-		NSL("decouple_flags",      SLE_CONDVAR(Order, decouple_flags,    SLE_UINT8,  SL_MIN_VERSION, SL_MAX_VERSION)),
+		NSL("type",          SLE_CONDVAR_X(Order, type, SLE_UINT16, SL_MIN_VERSION, SL_MAX_VERSION, SlXvFeatureTest([](uint16_t, bool version_in_range, const std::array<uint16_t, XSLFI_SIZE> &feature_versions) -> bool {
+			return version_in_range && SlXvIsFeatureMissing(feature_versions, XSLFI_ORDER_DECOUPLE);
+		}))),
+		NSL("type",          SLE_CONDVAR_X(Order, type, SLE_UINT16, SL_MIN_VERSION, SL_MAX_VERSION, SlXvFeatureTest(XSLFTO_AND, XSLFI_ORDER_DECOUPLE))),
+		NSL("decouple_flags", SLE_CONDVAR_X(Order, decouple_flags, SLE_UINT8, SL_MIN_VERSION, SL_MAX_VERSION, SlXvFeatureTest(XSLFTO_AND, XSLFI_ORDER_DECOUPLE))),
 		NSL("flags",         SLE_CONDVAR_X(Order, flags,              SLE_FILE_U8 | SLE_VAR_U16,    SL_MIN_VERSION, SL_MAX_VERSION, SlXvFeatureTest(XSLFTO_AND, XSLFI_ORDER_FLAGS_EXTRA, 0, 0))),
 		NSL("flags",         SLE_CONDVAR_X(Order, flags,              SLE_UINT16,                   SL_MIN_VERSION, SL_MAX_VERSION, SlXvFeatureTest(XSLFTO_AND, XSLFI_ORDER_FLAGS_EXTRA, 1))),
 		NSL("",             SLE_CONDNULL_X(1,                                                       SL_MIN_VERSION, SL_MAX_VERSION, SlXvFeatureTest(XSLFTO_AND, XSLFI_SPRINGPP))),
@@ -255,6 +258,7 @@ static void Load_ORDR()
 		while ((index = SlIterateArray()) != -1) {
 			OrderPoolItem *item = OrderPoolItem::CreateAtIndex(OrderID(index));
 			SlObjectLoadFiltered(&item->order, slt);
+			if (SlXvIsFeatureMissing(XSLFI_ORDER_DECOUPLE)) item->order.ConvertFromLegacyType();
 			item->next_ref = _order_item_ref;
 		}
 	}
@@ -454,6 +458,7 @@ struct OrderVectorStructHandlerBase : public SaveLoadStructHandler {
 		orders.resize(SlGetStructListLength(UINT32_MAX));
 		for (Order &order : orders) {
 			SlObjectLoadFiltered(&order, this->GetLoadDescription());
+			if (SlXvIsFeatureMissing(XSLFI_ORDER_DECOUPLE)) order.ConvertFromLegacyType();
 		}
 	}
 };

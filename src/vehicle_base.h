@@ -219,7 +219,6 @@ struct LoadgameState;
 struct GRFFile;
 struct VehicleCommonStructHandler;
 void ResetChainNonFrontMarkers(Vehicle *head);
-void ResetChainNonFrontMarkers(Vehicle *head);
 
 namespace upstream_sl {
 	class SlVehicleCommon;
@@ -547,6 +546,8 @@ public:
 	 * @return \c true iff this considered the primary vehicle.
 	 */
 	virtual bool IsPrimaryVehicle() const { return false; }
+	/** Whether this vehicle is the single logical identity counted for its consist. */
+	bool IsConsistIdentity() const;
 
 	const Engine *GetEngine() const;
 

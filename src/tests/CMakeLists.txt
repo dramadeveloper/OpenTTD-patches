@@ -12,6 +12,8 @@ add_test_files(
     mock_fontcache.h
     mock_spritecache.cpp
     mock_spritecache.h
+    order_compat.cpp
+    order_decouple.cpp
     serialisation.cpp
     string_consumer.cpp
     string_func.cpp
@@ -24,5 +26,6 @@ add_test_files(
     test_script_admin.cpp
     test_window_desc.cpp
     tilearea.cpp
+    train_coupling.cpp
     utf8.cpp
 )

@@ -271,7 +271,7 @@ public:
 		if (!HasReservedTracks(tile, TrackdirBitsToTrackBits(tdb))) return false;
 		Train *t = GetTrainForReservation(tile, TrackdirToTrack(td));
 		if (t == nullptr) return false;
-		return ValidateCoupleCandidate(Yapf().GetVehicle(), t->First(), tile) != nullptr;
+		return ValidateCoupleCandidate(Yapf().GetVehicle(), t->First(), tile, t) != nullptr;
 	}
 
 	/** @copydoc CYapfBaseT::PfCalcEstimateFunc */

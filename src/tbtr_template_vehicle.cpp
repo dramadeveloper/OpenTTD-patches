@@ -110,7 +110,7 @@ bool ShouldServiceTrainForTemplateReplacement(const Train *t, const TemplateVehi
 	if (tv->IsReplaceOldOnly() && !t->NeedsAutorenewing(c, false)) return false;
 	Money needed_money = c->settings.engine_renew_money;
 	if (needed_money > GetAvailableMoney(c->index)) return false;
-	TBTRDiffFlags diff = TrainTemplateDifference(t, tv);
+	TBTRDiffFlags diff = TrainTemplateDifference(t->First(), tv);
 	if (diff & TBTRDF_CONSIST) {
 		if (_settings_game.difficulty.infinite_money) return true;
 		/* Check money.
@@ -157,8 +157,9 @@ static void MarkTrainsInGroupAsPendingTemplateReplacement(GroupID gid, const Tem
 
 	std::sort(groups.begin(), groups.end());
 
-	for (Train *t : Train::IterateFrontOnly()) {
-		if (!t->IsFrontEngine() || t->owner != owner || t->group_id >= NEW_GROUP) continue;
+	for (Train *head : Train::IterateFrontOnly()) {
+		Train *t = head->Primary();
+		if (!t->IsConsistIdentity() || t->owner != owner || t->group_id >= NEW_GROUP) continue;
 
 		if (std::binary_search(groups.begin(), groups.end(), t->group_id)) {
 			t->vehicle_flags.Set(VehicleFlag::ReplacementPending, tv != nullptr && ShouldServiceTrainForTemplateReplacement(t, tv));
@@ -170,8 +171,9 @@ void MarkTrainsUsingTemplateAsPendingTemplateReplacement(const TemplateVehicle *
 {
 	Owner owner = tv->owner;
 
-	for (Train *t : Train::IterateFrontOnly()) {
-		if (!t->IsFrontEngine() || t->owner != owner || t->group_id >= NEW_GROUP) continue;
+	for (Train *head : Train::IterateFrontOnly()) {
+		Train *t = head->Primary();
+		if (!t->IsConsistIdentity() || t->owner != owner || t->group_id >= NEW_GROUP) continue;
 
 		if (GetTemplateIDByGroupIDRecursive(t->group_id) == tv->index) {
 			t->vehicle_flags.Set(VehicleFlag::ReplacementPending, ShouldServiceTrainForTemplateReplacement(t, tv));

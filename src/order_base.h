@@ -268,6 +268,9 @@ public:
 	 */
 	inline OrderType GetType() const { return (OrderType)GB(this->type, 0, 5); }
 
+	/** Convert the pre-decouple packed type/flag layout after loading an old savegame. */
+	inline void ConvertFromLegacyType() { this->type = ConvertLegacyOrderType(static_cast<uint8_t>(this->type)); }
+
 	void InvalidateGuiOnRemove();
 	void Free();
 

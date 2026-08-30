@@ -29,7 +29,7 @@ static uint32_t _order_item_ref;
 SaveLoadTable GetOrderDescription()
 {
 	static const SaveLoad _order_desc[] = {
-		     SLE_VAR(Order, type,           SLE_UINT16),
+		     SLE_VAR(Order, type,           SLE_FILE_U8 | SLE_VAR_U16),
 		     SLE_VAR(Order, flags,          SLE_FILE_U8 | SLE_VAR_U16),
 		     SLE_VAR(Order, dest,           SLE_UINT16),
 		    SLEG_VAR("next", _order_item_ref, SLE_UINT32),
@@ -37,7 +37,6 @@ SaveLoadTable GetOrderDescription()
 		 SLE_CONDVAR(Order, wait_time,      SLE_FILE_U16 | SLE_VAR_U32,  SLV_67, SL_MAX_VERSION),
 		 SLE_CONDVAR(Order, travel_time,    SLE_FILE_U16 | SLE_VAR_U32,  SLV_67, SL_MAX_VERSION),
 		 SLE_CONDVAR(Order, max_speed,      SLE_UINT16, SLV_172, SL_MAX_VERSION),
-		 SLE_CONDVAR(Order, decouple_flags, SLE_UINT8,  SL_MIN_VERSION, SL_MAX_VERSION),
 	};
 
 	return _order_desc;
@@ -63,6 +62,7 @@ struct ORDRChunkHandler : ChunkHandler {
 			while ((index = SlIterateArray()) != -1) {
 				OrderPoolItem *item = OrderPoolItem::CreateAtIndex(OrderID(index));
 				SlObject(&item->order, slt);
+				item->order.ConvertFromLegacyType();
 				item->next_ref = _order_item_ref;
 			}
 		}
@@ -73,8 +73,7 @@ template <typename T>
 class SlOrders : public VectorSaveLoadHandler<SlOrders<T>, T, Order> {
 public:
 	static inline const SaveLoad description[] = {
-		SLE_VAR(Order, type,        SLE_UINT16),
-		SLE_CONDVAR(Order, decouple_flags, SLE_UINT8, SL_MIN_VERSION, SL_MAX_VERSION),
+		SLE_VAR(Order, type,        SLE_FILE_U8 | SLE_VAR_U16),
 		SLE_VAR(Order, flags,       SLE_FILE_U8 | SLE_VAR_U16),
 		SLE_VAR(Order, dest,        SLE_UINT16),
 		SLE_VAR(Order, refit_cargo, SLE_UINT8),
@@ -127,6 +126,9 @@ struct ORDLChunkHandler : ChunkHandler {
 			/* set num_orders to 0 so it's a valid OrderList */
 			OrderList *list = OrderList::CreateAtIndex(OrderListID(index));
 			SlObject(list, slt);
+			if (!old_mode) {
+				for (Order &order : list->GetOrderVector()) order.ConvertFromLegacyType();
+			}
 			if (old_mode) {
 				RegisterOrderPoolItemReference(&list->GetOrderVector(), _order_item_ref);
 			}
@@ -178,6 +180,9 @@ struct BKORChunkHandler : ChunkHandler {
 			/* set num_orders to 0 so it's a valid OrderList */
 			OrderBackup *ob = OrderBackup::CreateAtIndex(OrderBackupID(index));
 			SlObject(ob, slt);
+			if (!old_mode) {
+				for (Order &order : ob->orders) order.ConvertFromLegacyType();
+			}
 			if (ob->cur_real_order_index == 0xFF) ob->cur_real_order_index = INVALID_VEH_ORDER_ID;
 			if (ob->cur_implicit_order_index == 0xFF) ob->cur_implicit_order_index = INVALID_VEH_ORDER_ID;
 			if (old_mode) {

@@ -1419,6 +1419,7 @@ void TraceRestrictRemoveNonOwnedReferencesFromOrder(struct Order *o, Owner order
 
 void TraceRestrictRemoveVehicleFromAllSlots(VehicleID id);
 void TraceRestrictTransferVehicleOccupantInAllSlots(VehicleID from, VehicleID to);
+bool TraceRestrictTransferVehicleOccupantInUsableSlots(VehicleID from, VehicleID to, Owner owner);
 void TraceRestrictGetVehicleSlots(VehicleID id, std::vector<TraceRestrictSlotID> &out);
 void TraceRestrictVacateSlotGroup(const TraceRestrictSlotGroup *sg, Owner owner, const Vehicle *v);
 bool TraceRestrictIsVehicleInSlotGroup(const TraceRestrictSlotGroup *sg, Owner owner, const Vehicle *v);
@@ -1431,6 +1432,11 @@ void TraceRestrictClearRecentSlotsAndCounters();
 class EncodedString TraceRestrictPrepareSlotCounterSelectTooltip(StringID base_str, VehicleType vtype);
 
 static const uint MAX_LENGTH_TRACE_RESTRICT_SLOT_NAME_CHARS = 128; ///< The maximum length of a slot name in characters including '\0'
+
+inline bool IsTraceRestrictSlotUsableByOwner(Owner slot_owner, bool is_public, Owner using_owner)
+{
+	return slot_owner == using_owner || is_public;
+}
 
 /**
  * Slot type, used for slot operations
@@ -1480,7 +1486,7 @@ struct TraceRestrictSlot : TraceRestrictSlotPool::PoolItem<&_tracerestrictslot_p
 
 	inline bool IsUsableByOwner(Owner using_owner) const
 	{
-		return this->owner == using_owner || this->flags.Test(Flag::Public);
+		return IsTraceRestrictSlotUsableByOwner(this->owner, this->flags.Test(Flag::Public), using_owner);
 	}
 
 	bool Occupy(const Vehicle *v, bool force = false);

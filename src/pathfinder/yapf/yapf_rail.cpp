@@ -106,7 +106,7 @@ private:
 		/* Reaching a tile occupied by the wait-for-couple partner IS the
 		 * destination -- do not try to reserve its tiles. */
 		for (const Train *t : VehiclesOnTile<VehicleType::Train>(tile)) {
-			if (ValidateCoupleCandidate(Yapf().GetVehicle(), t->First(), tile) != nullptr) return true;
+			if (ValidateCoupleCandidate(Yapf().GetVehicle(), t->First(), tile, t) != nullptr) return true;
 		}
 		TrackdirBits tdb = TrackdirToTrackdirBits(td);
 		TrackBits tracks = TrackdirBitsToTrackBits(tdb);
@@ -534,7 +534,7 @@ public:
 			Train *target = ResolveCoupleTargetStation(v, dest_tile, dest_td);
 			if (target == nullptr && !IsRailStationTile(dest_tile)) {
 				target = GetTrainForReservation(dest_tile, TrackdirToTrack(dest_td));
-				if (target != nullptr) target = ValidateCoupleCandidate(v, target->First(), dest_tile);
+				if (target != nullptr) target = ValidateCoupleCandidate(v, target->First(), dest_tile, target);
 			}
 			this->couple_target_found = target;
 		}

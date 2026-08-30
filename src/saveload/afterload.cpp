@@ -656,7 +656,8 @@ void IterateVehicleAndOrderListOrders(F func)
 	IterateAllNonVehicleOrders([&](Order *order) {
 		func(order);
 	});
-	for (Vehicle *v : Vehicle::IterateFrontOnly()) {
+	for (Vehicle *head : Vehicle::IterateFrontOnly()) {
+		Vehicle *v = head->Primary();
 		func(&(v->current_order));
 	}
 }
@@ -3356,8 +3357,9 @@ bool AfterLoadGame()
 		}
 
 		/* Fill Vehicle::cur_real_order_index */
-		for (Vehicle *v : Vehicle::IterateFrontOnly()) {
-			if (!v->IsPrimaryVehicle()) continue;
+		for (Vehicle *head : Vehicle::IterateFrontOnly()) {
+			Vehicle *v = head->Primary();
+			if (!v->IsConsistIdentity()) continue;
 
 			/* Older versions are less strict with indices being in range and fix them on the fly */
 			if (v->cur_implicit_order_index >= v->GetNumOrders()) v->cur_implicit_order_index = 0;

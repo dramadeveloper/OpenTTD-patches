@@ -188,8 +188,9 @@ static void FixAllReservations()
 {
 	/* if this function is called, we can safely assume that sharing of rails is being switched off */
 	assert(!IsInfrastructureSharingEnabled(VehicleType::Train));
-	for (Train *v : Train::IterateFrontOnly()) {
-		if (!v->IsPrimaryVehicle() || v->vehstatus.Test(VehState::Crashed) || HasBit(v->subtype, GVSF_VIRTUAL)) continue;
+	for (Train *head : Train::IterateFrontOnly()) {
+		Train *v = head->Primary();
+		if (!v->IsConsistIdentity() || v->vehstatus.Test(VehState::Crashed) || HasBit(head->subtype, GVSF_VIRTUAL)) continue;
 		/* It might happen that the train reserved additional tracks,
 		 * but FollowTrainReservation can't detect those because they are no longer reachable.
 		 * detect this by first finding the end of the reservation,
@@ -236,11 +237,12 @@ bool CheckSharingChangePossible(VehicleType type, bool new_value)
 	});
 
 	StringID error_message = STR_NULL;
-	for (Vehicle *v : Vehicle::IterateTypeFrontOnly(type)) {
-		if (HasBit(v->subtype, GVSF_VIRTUAL)) continue;
+	for (Vehicle *head : Vehicle::IterateTypeFrontOnly(type)) {
+		Vehicle *v = head->Primary();
+		if (HasBit(head->subtype, GVSF_VIRTUAL)) continue;
 
 		/* Check vehicle positiion */
-		if (!VehiclePositionIsAllowed(v)) {
+		if (!VehiclePositionIsAllowed(head)) {
 			error_message = STR_CONFIG_SETTING_SHARING_USED_BY_VEHICLES;
 			/* Break immediately, this error message takes precedence over the others. */
 			break;
@@ -261,8 +263,9 @@ bool CheckSharingChangePossible(VehicleType type, bool new_value)
 	}
 
 	if (type == VehicleType::Train && _settings_game.vehicle.train_braking_model == TBM_REALISTIC) {
-		for (Train *v : Train::IterateFrontOnly()) {
-			if (!v->IsPrimaryVehicle() || v->vehstatus.Test(VehState::Crashed) || HasBit(v->subtype, GVSF_VIRTUAL)) continue;
+		for (Train *head : Train::IterateFrontOnly()) {
+			Train *v = head->Primary();
+			if (!v->IsConsistIdentity() || v->vehstatus.Test(VehState::Crashed) || HasBit(head->subtype, GVSF_VIRTUAL)) continue;
 			/* It might happen that the train reserved additional tracks,
 			 * but FollowTrainReservation can't detect those because they are no longer reachable.
 			 * detect this by first finding the end of the reservation,
@@ -310,12 +313,13 @@ void HandleSharingCompanyDeletion(Owner owner)
 
 	Vehicle *si_v = nullptr;
 	SCOPE_INFO_FMT([&si_v], "HandleSharingCompanyDeletion: veh: {}", VehicleInfoDumper(si_v));
-	for (Vehicle *v : Vehicle::IterateFrontOnly()) {
+	for (Vehicle *head : Vehicle::IterateFrontOnly()) {
+		Vehicle *v = head->Primary();
 		si_v = v;
-		if (!IsCompanyBuildableVehicleType(v)) continue;
+		if (!IsCompanyBuildableVehicleType(head)) continue;
 		/* vehicle position */
-		if (v->owner == owner || !VehiclePositionIsAllowed(v, owner)) {
-			RemoveAndSellVehicle(v, v->owner != owner);
+		if (head->owner == owner || !VehiclePositionIsAllowed(head, owner)) {
+			RemoveAndSellVehicle(head, head->owner != owner);
 			continue;
 		}
 		/* current order */

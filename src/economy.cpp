@@ -243,9 +243,10 @@ int UpdateCompanyRatingAndValue(Company *c, bool update)
 		bool min_profit_first = true;
 		uint num = 0;
 
-		for (const Vehicle *v : Vehicle::IterateFrontOnly()) {
+		for (const Vehicle *head : Vehicle::IterateFrontOnly()) {
+			const Vehicle *v = head->Primary();
 			if (v->owner != owner) continue;
-			if (IsCompanyBuildableVehicleType(v->type) && v->IsPrimaryVehicle() && !HasBit(v->subtype, GVSF_VIRTUAL)) {
+			if (IsCompanyBuildableVehicleType(v->type) && v->IsConsistIdentity() && !HasBit(v->subtype, GVSF_VIRTUAL)) {
 				if (v->profit_last_year > 0) num++; // For the vehicle score only count profitable vehicles
 				if (v->economy_age > VEHICLE_PROFIT_MIN_AGE) {
 					/* Find the vehicle with the lowest amount of profit */
@@ -476,7 +477,7 @@ void ChangeOwnershipOfCompanyItems(Owner old_owner, Owner new_owner)
 					}
 				} else {
 					if (v->IsEngineCountable()) GroupStatistics::CountEngine(v, -1);
-					if (v->IsPrimaryVehicle()) GroupStatistics::CountVehicle(v, -1);
+					if (v->IsConsistIdentity()) GroupStatistics::CountVehicle(v, -1);
 				}
 			}
 		}
@@ -538,7 +539,7 @@ void ChangeOwnershipOfCompanyItems(Owner old_owner, Owner new_owner)
 				if (v->IsEngineCountable()) {
 					GroupStatistics::CountEngine(v, 1);
 				}
-				if (v->IsPrimaryVehicle() && !HasBit(v->subtype, GVSF_VIRTUAL)) {
+				if (v->IsConsistIdentity() && !HasBit(v->subtype, GVSF_VIRTUAL)) {
 					GroupStatistics::CountVehicle(v, 1);
 					auto &unitidgen = new_company->freeunits[v->type];
 					v->unitnumber = unitidgen.UseID(unitidgen.NextID());

@@ -1096,6 +1096,12 @@ bool Vehicle::IsEngineCountable() const
 	}
 }
 
+bool Vehicle::IsConsistIdentity() const
+{
+	if (!this->IsPrimaryVehicle()) return false;
+	return this->type != VehicleType::Train || this == this->Primary();
+}
+
 /**
  * Check whether Vehicle::engine_type has any meaning.
  * @return true if the vehicle has a usable engine type.
@@ -1215,7 +1221,7 @@ void Vehicle::PreDestructor()
 
 	if (this->IsEngineCountable()) {
 		GroupStatistics::CountEngine(this, -1);
-		if (this->IsPrimaryVehicle()) GroupStatistics::CountVehicle(this, -1);
+		if (this->IsConsistIdentity()) GroupStatistics::CountVehicle(this, -1);
 		GroupStatistics::UpdateAutoreplace(this->owner);
 
 		if (this->owner == _local_company) InvalidateAutoreplaceWindow(this->engine_type, this->group_id);
@@ -2612,7 +2618,7 @@ void EconomyAgeVehicle(Vehicle *v)
 
 	if (v->economy_age < EconTime::MAX_DATE.AsDelta()) {
 		v->economy_age++;
-		if (v->IsPrimaryVehicle() && v->economy_age == VEHICLE_PROFIT_MIN_AGE + 1) GroupStatistics::VehicleReachedMinAge(v);
+		if (v->IsConsistIdentity() && v->economy_age == VEHICLE_PROFIT_MIN_AGE + 1) GroupStatistics::VehicleReachedMinAge(v);
 	}
 }
 
@@ -4843,8 +4849,9 @@ void Vehicle::DumpVehicleFlagsMultiline(format_target &buffer, const char *base_
 
 void VehiclesYearlyLoop()
 {
-	for (Vehicle *v : Vehicle::IterateFrontOnly()) {
-		if (v->IsPrimaryVehicle()) {
+	for (Vehicle *head : Vehicle::IterateFrontOnly()) {
+		Vehicle *v = head->Primary();
+		if (v->IsConsistIdentity()) {
 			/* show warning if vehicle is not generating enough income last 2 years (corresponds to a red icon in the vehicle list) */
 			Money profit = v->GetDisplayProfitThisYear();
 			if (v->economy_age >= VEHICLE_PROFIT_MIN_AGE && profit < 0) {

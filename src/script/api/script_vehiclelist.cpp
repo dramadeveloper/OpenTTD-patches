@@ -29,6 +29,8 @@ struct FrontVehicleOnlyFillListHelper {
 		return Vehicle::IterateFrontOnly();
 	}
 
+	const Vehicle *GetItem(const Vehicle *v) { return v->Primary(); }
+
 	int OpcodeCharge(int item_count)
 	{
 		return item_count / 2;
@@ -44,6 +46,8 @@ struct VehicleTypeFrontVehicleOnlyFillListHelper {
 	{
 		return Vehicle::IterateTypeFrontOnly(this->vt);
 	}
+
+	const Vehicle *GetItem(const Vehicle *v) { return v->Primary(); }
 
 	int OpcodeCharge(int item_count)
 	{

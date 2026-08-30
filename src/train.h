@@ -112,8 +112,8 @@ void DeleteVisibleTrain(Train *v);
 void CheckBreakdownFlags(Train *v);
 void GetTrainSpriteSize(EngineID engine, uint &width, uint &height, int &xoffs, int &yoffs, EngineImageType image_type);
 bool TrainFitStation(const Train *v);
-bool IsCoupleArrangementValid(Train *v_phys, Train *u_phys);
-Train *ValidateCoupleCandidate(const Train *moving, Train *waiting_first, TileIndex contact_tile);
+bool IsCoupleArrangementValid(Train *v_phys, Train *u_phys, uint8_t requested_units, bool contact_at_back);
+Train *ValidateCoupleCandidate(const Train *moving, Train *waiting_first, TileIndex contact_tile, const Train *encountered = nullptr);
 Train *ResolveCoupleTargetStation(const Train *moving, TileIndex tile, Trackdir td);
 
 bool TrainOnCrossing(TileIndex tile);

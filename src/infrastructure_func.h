@@ -28,6 +28,12 @@ inline bool IsTrainCouplingAllowed(Owner first_owner, Owner second_owner)
 	return first_owner == second_owner || _settings_game.economy.allow_coupling_other_company_trains;
 }
 
+/** The moving train survives a coupling operation and owns the merged consist. */
+inline Owner GetTrainCouplingResultOwner(Owner moving_owner, Owner)
+{
+	return moving_owner;
+}
+
 inline bool IsInfrastructureSharingEnabled(VehicleType vt)
 {
 	return _settings_game.economy.infrastructure_sharing[to_underlying(vt)];

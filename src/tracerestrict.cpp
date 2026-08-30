@@ -3644,6 +3644,38 @@ void TraceRestrictTransferVehicleOccupantInAllSlots(VehicleID from, VehicleID to
 	if (!slots.empty()) InvalidateWindowClassesData(WindowClass::TraceRestrictSlots);
 }
 
+/** Transfer a vehicle's slot occupancy where the new owner may use the slot, and vacate the rest. */
+bool TraceRestrictTransferVehicleOccupantInUsableSlots(VehicleID from, VehicleID to, Owner owner)
+{
+	ankerl::svector<TraceRestrictSlotID, 16> slots;
+	const auto start = _slot_vehicle_index.lower_bound(from);
+	auto it = start;
+	for (; it != _slot_vehicle_index.end() && it->first == from; ++it) slots.push_back(it->second);
+	_slot_vehicle_index.erase(start, it);
+
+	bool transferred = false;
+	for (TraceRestrictSlotID slot_id : slots) {
+		TraceRestrictSlot *slot = TraceRestrictSlot::Get(slot_id);
+		if (!slot->IsUsableByOwner(owner) || slot->IsOccupant(to)) {
+			container_unordered_remove(slot->occupants, from);
+			if (slot->IsUsableByOwner(owner) && slot->IsOccupant(to)) transferred = true;
+			slot->UpdateSignals();
+			continue;
+		}
+
+		for (VehicleID &id : slot->occupants) {
+			if (id == from) {
+				id = to;
+				_slot_vehicle_index.insert({ to, slot_id });
+				transferred = true;
+			}
+		}
+	}
+
+	if (!slots.empty()) InvalidateWindowClassesData(WindowClass::TraceRestrictSlots);
+	return transferred;
+}
+
 /** Get list of slots occupied by a vehicle ID */
 void TraceRestrictGetVehicleSlots(VehicleID id, std::vector<TraceRestrictSlotID> &out)
 {

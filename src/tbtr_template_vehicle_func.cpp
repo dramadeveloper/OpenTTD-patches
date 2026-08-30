@@ -276,6 +276,7 @@ void NeutralizeStatus(Train *t)
 
 TBTRDiffFlags TrainTemplateDifference(const Train *t, const TemplateVehicle *tv)
 {
+	t = t->First();
 	TBTRDiffFlags diff = TBTRDF_NONE;
 	const bool check_refit_as_template = tv->refit_as_template;
 	while (t != nullptr && tv != nullptr) {
@@ -316,8 +317,9 @@ uint CountTrainsNeedingTemplateReplacement(GroupID g_id, const TemplateVehicle *
 	uint count = 0;
 	if (tv == nullptr) return count;
 
-	for (const Train *t : Train::IterateFrontOnly()) {
-		if (t->IsPrimaryVehicle() && t->group_id == g_id && TrainTemplateDifference(t, tv) != TBTRDF_NONE) {
+	for (const Train *head : Train::IterateFrontOnly()) {
+		const Train *t = head->Primary();
+		if (t->IsConsistIdentity() && t->group_id == g_id && TrainTemplateDifference(head, tv) != TBTRDF_NONE) {
 			count++;
 		}
 	}
